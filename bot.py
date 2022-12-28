@@ -1,14 +1,9 @@
 import telebot
-import requests
-import json
+
 from config import TOKEN, keys
-
-
-
+from extensions import Convertor, ConvertionException
 
 bot = telebot.TeleBot(TOKEN)
-
-
 
 
 # Обрабатываются все сообщения, содержащие команды '/start' or '/help'.
@@ -19,8 +14,6 @@ def handle_start_help(message: telebot.types.Message):
  \nСписок доступных валют: /values'
     bot.reply_to(message, text)
 
-
-# Обрабатывается все документы и аудиозаписи
 @bot.message_handler(commands=['values'])
 def values(message: telebot.types.Message):
     text = 'Доступные Валюты \n______________________'
@@ -30,11 +23,20 @@ def values(message: telebot.types.Message):
 
 @bot.message_handler(content_types=['text'])
 def convert(message: telebot.types.Message):
-    base, quote, amount = message.text.split(' ')
-    r = requests.get(f"https://min-api.cryptocompare.com/data/price?fsym={keys[base]}&tsyms={keys[quote]}")
-    total_quote = json.loads(r.content)[keys[quote]]
-    text = f"Цена {amount} {base} в {quote} - {total_quote}"
-    bot.send_message(message.chat.id, text)
+    try:
+        value = message.text.split(' ')
 
+        if len(value) != 3:
+            raise ConvertionException('Не верное количество аргументов.')
+
+        base, quote, amount = value
+        text = Convertor.get_price(base, quote, amount)
+    except ConvertionException as e:
+        bot.reply_to(message, f'Ощибка пользователя\n{e}')
+    except Exception as e:
+        bot.reply_to(message, f'Не удалось обработать команду\n{e}')
+    else:
+
+        bot.send_message(message.chat.id, text)
 
 bot.polling(none_stop=True)
